@@ -299,7 +299,8 @@
     </div>
     <div class="rate">
       toll rate 0.1088 RM/km<br>
-      91 plazas · north, central, south, east
+      91 plazas · north, central, south, east<br>
+      <span id="fuel-live-status">fuel prices: checking data.gov.my…</span>
     </div>
   </header>
 
@@ -365,7 +366,7 @@
   </div>
 
   <footer>
-    Toll cost is modelled from plaza-to-plaza distance at a flat rate; actual PLUS, ELITE and other concessionaire tariffs vary by class and section. EV energy assumes roughly RM0.50/kWh at home, RM1.10/kWh public AC and RM1.50/kWh public DC — check your operator's posted rate before you plan around this.
+    RON95/RON97/diesel prices are fetched live from <a href="https://data.gov.my/data-catalogue/fuelprice" target="_blank" rel="noopener">data.gov.my</a> (Ministry of Finance, updated weekly) on page load, with the last-known rate shown above as a fallback if the fetch fails. Toll cost is modelled from plaza-to-plaza distance at a flat rate; actual PLUS, ELITE and other concessionaire tariffs vary by class and section — no public live feed exists for these, so this figure is a manually-set assumption. EV energy assumes roughly RM0.50/kWh at home, RM1.10/kWh public AC and RM1.50/kWh public DC; charging operators (TNB, Gentari, JomCharge, ChargEV, Tesla) don't publish a live pricing API either, so these are also manually-set — check your operator's posted rate before you plan around this. Toll and EV rates in this tool were last checked <strong id="assumptions-date">9 Sep 2026</strong>.
   </footer>
 
 </div>
@@ -603,6 +604,49 @@ $vehicle.addEventListener('change', onVehicleChange);
 $energy.addEventListener('change', recalc);
 
 onVehicleChange();
+
+// ---------------- live fuel prices (data.gov.my, official weekly rates) ----------------
+// RON95/RON97/diesel are set weekly by the Ministry of Finance and published as open data
+// at https://data.gov.my/data-catalogue/fuelprice (CC BY 4.0). Toll and EV charging rates
+// have no equivalent public live feed in Malaysia, so those stay as manually-set assumptions
+// (see footer) — only this block is genuinely "live".
+
+async function loadLiveFuelPrices(){
+  const $status = document.getElementById('fuel-live-status');
+  try{
+    const since = new Date();
+    since.setDate(since.getDate() - 60); // last ~60 days is plenty to catch this week's row
+    const sinceStr = since.toISOString().slice(0, 10);
+    const url = `https://api.data.gov.my/data-catalogue?id=fuelprice&date_start=${sinceStr}@date&limit=60`;
+
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    if(!Array.isArray(rows) || rows.length === 0) throw new Error('empty response');
+
+    // pick the most recent row client-side, don't rely on server-side ordering
+    rows.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const latest = rows[rows.length - 1];
+
+    // RON95 "Subsidised" maps to the BUDI95 targeted-subsidy rate (MyKad-linked, capped
+    // litres/month) where available, falling back to the general RON95 rate otherwise.
+    const ron95Subsidised = (typeof latest.ron95_budi95 === 'number') ? latest.ron95_budi95 : latest.ron95;
+
+    if(typeof ron95Subsidised === 'number') FUELS[0][1] = ron95Subsidised;
+    if(typeof latest.ron97 === 'number') FUELS[1][1] = latest.ron97;
+    if(typeof latest.diesel === 'number') FUELS[2][1] = latest.diesel;
+
+    if($status) $status.textContent = `fuel prices live · week of ${latest.date}`;
+    recalc(); // repaint the ticket with the refreshed rate, if fuel/diesel is selected
+  } catch(err){
+    // offline, CORS blocked, opened as a local file://, or the API is down — keep the
+    // reference rates already baked into FUELS above and say so rather than fail silently.
+    if($status) $status.textContent = 'fuel prices: reference rates (live fetch unavailable)';
+    console.warn('Live fuel price fetch failed, using built-in reference rates:', err);
+  }
+}
+
+loadLiveFuelPrices();
 </script>
 
 </body>
