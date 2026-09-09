@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Highway cost estimator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0a09;
+    --bg-raised: #101010;
+    --ink: #f2f0ea;
+    --ink-dim: #97958d;
+    --ink-faint: #58564f;
+    --line: rgba(242,240,234,0.14);
+    --line-strong: rgba(242,240,234,0.28);
+    --amber: #e3a857;
+    --amber-dim: rgba(227,168,87,0.35);
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  body{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .num{
+    font-family: 'IBM Plex Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection{ background: var(--amber-dim); color: var(--ink); }
+
+  a{ color: var(--ink); }
+
+  /* ---------- shell ---------- */
+
+  .shell{
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 64px 28px 96px;
+  }
+
+  header.masthead{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 24px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+  }
+
+  .masthead h1{
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 600;
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+
+  .masthead p{
+    margin: 0;
+    max-width: 46ch;
+    color: var(--ink-dim);
+    font-size: 15px;
+  }
+
+  .masthead .rate{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    text-align: right;
+    line-height: 1.7;
+    white-space: nowrap;
+  }
+
+  /* ---------- layout: form | ticket ---------- */
+
+  .grid{
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 0;
+    align-items: start;
+    border: 1px solid var(--line);
+  }
+
+  @media (max-width: 760px){
+    .grid{ grid-template-columns: 1fr; }
+  }
+
+  .form-side{
+    padding: 40px;
+    border-right: 1px solid var(--line);
+  }
+
+  @media (max-width: 760px){
+    .form-side{ border-right: none; border-bottom: 1px solid var(--line); }
+  }
+
+  .field-group{
+    margin-bottom: 40px;
+  }
+  .field-group:last-child{ margin-bottom: 0; }
+
+  .group-label{
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin: 0 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .group-label .marker{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    border: 1px solid var(--line);
+    padding: 2px 6px;
+  }
+
+  .field{
+    margin-bottom: 20px;
+  }
+  .field:last-child{ margin-bottom: 0; }
+
+  .field label{
+    display: block;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    margin-bottom: 7px;
+  }
+
+  select{
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    color: var(--ink);
+    border: none;
+    border-bottom: 1px solid var(--line-strong);
+    padding: 9px 26px 9px 0;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='7' viewBox='0 0 11 7'%3E%3Cpath d='M1 1L5.5 6L10 1' stroke='%2397958d' stroke-width='1.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+    transition: border-color 0.15s ease;
+  }
+
+  select:hover{ border-bottom-color: var(--ink); }
+
+  select:focus{
+    outline: none;
+    border-bottom-color: var(--amber);
+  }
+
+  select option{
+    background: var(--bg-raised);
+    color: var(--ink);
+  }
+
+  select option:disabled{
+    color: var(--ink-faint);
+  }
+
+  .swap-btn{
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 6px 10px;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .swap-btn:hover{ color: var(--ink); border-color: var(--line-strong); }
+
+  .note{
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    margin-top: 14px;
+    line-height: 1.6;
+  }
+
+  /* ---------- ticket / summary side ---------- */
+
+  .ticket-side{
+    padding: 40px;
+    background: var(--bg-raised);
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .ticket-label{
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin: 0 0 24px;
+  }
+
+  .route-readout{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin-bottom: 28px;
+    padding-bottom: 24px;
+    border-bottom: 1px dashed var(--line-strong);
+  }
+
+  .route-readout .from-to{
+    color: var(--ink);
+    font-size: 14px;
+    margin-bottom: 6px;
+    word-break: break-word;
+  }
+
+  .line-item{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 14px;
+  }
+
+  .line-item .k{ color: var(--ink-dim); }
+  .line-item .v{ font-size: 15px; }
+
+  .line-item.muted{ opacity: 0.4; }
+
+  .divider-dash{
+    border: none;
+    border-top: 1px dashed var(--line-strong);
+    margin: 8px 0 0;
+  }
+
+  .total-row{
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 24px;
+    margin-top: auto;
+  }
+
+  .total-row .k{
+    font-size: 14px;
+    color: var(--ink-dim);
+  }
+
+  .total-row .v{
+    font-size: clamp(34px, 5vw, 44px);
+    font-weight: 500;
+    color: var(--amber);
+    line-height: 1;
+  }
+
+  .total-row .v .cur{
+    font-size: 16px;
+    color: var(--ink-dim);
+    margin-right: 6px;
+    vertical-align: 4px;
+  }
+
+  footer{
+    margin-top: 32px;
+    font-size: 12px;
+    color: var(--ink-faint);
+    line-height: 1.7;
+    max-width: 70ch;
+  }
+
+  footer a{ color: var(--ink-dim); }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <header class="masthead">
+    <div>
+      <h1>Highway cost estimator</h1>
+      <p>Pick two toll plazas anywhere on the Peninsular Malaysia expressway network, choose what you drive, and see the trip cost update as you go.</p>
+    </div>
+    <div class="rate">
+      toll rate 0.1088 RM/km<br>
+      91 plazas · north, central, south, east
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <div class="form-side">
+
+      <div class="field-group">
+        <p class="group-label"><span class="marker">route</span> entry and exit</p>
+        <div class="field">
+          <label for="entry">Entry plaza</label>
+          <select id="entry"></select>
+        </div>
+        <div class="field">
+          <label for="exit">Exit plaza</label>
+          <select id="exit"></select>
+        </div>
+        <button class="swap-btn" id="swap" type="button">swap entry / exit</button>
+      </div>
+
+      <div class="field-group">
+        <p class="group-label"><span class="marker">vehicle</span> type and model</p>
+        <div class="field">
+          <label for="vehicle">Vehicle</label>
+          <select id="vehicle"></select>
+        </div>
+        <div class="field">
+          <label for="energy" id="energy-label">Fuel type</label>
+          <select id="energy"></select>
+        </div>
+        <p class="note" id="ev-note">Electric vehicles: pick home, public AC, or public DC charging. Energy prices follow current Malaysia benchmark rates and vary by operator, tariff and site.</p>
+      </div>
+
+    </div>
+
+    <div class="ticket-side">
+      <p class="ticket-label">Trip summary</p>
+
+      <div class="route-readout">
+        <div class="from-to" id="route-text">—</div>
+        <span id="distance-text">0 km</span>
+      </div>
+
+      <div class="line-item">
+        <span class="k">Toll</span>
+        <span class="v num" id="toll-out">RM 0.00</span>
+      </div>
+      <div class="line-item" id="fuel-row">
+        <span class="k" id="fuel-label">Fuel</span>
+        <span class="v num" id="fuel-out">RM 0.00</span>
+      </div>
+      <div class="line-item" id="charge-row">
+        <span class="k">Public charging</span>
+        <span class="v num" id="charge-out">RM 0.00</span>
+      </div>
+
+      <div class="total-row">
+        <span class="k">Total</span>
+        <span class="v num" id="total-out"><span class="cur">RM</span>0.00</span>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Toll cost is modelled from plaza-to-plaza distance at a flat rate; actual PLUS, ELITE and other concessionaire tariffs vary by class and section. EV energy assumes roughly RM0.50/kWh at home, RM1.10/kWh public AC and RM1.50/kWh public DC — check your operator's posted rate before you plan around this.
+  </footer>
+
+</div>
+
+<script>
+// ---------------- data (from Malaysia_Highway_Cost_Estimator_v3_EV_fixed.xlsx) ----------------
+
+const TOLLS = [
+  ["Bukit Kayu Hitam","North",485],["Jitra","North",460],["Alor Setar Utara","North",437],
+  ["Alor Setar Selatan","North",430],["Pendang","North",415],["Gurun","North",400],
+  ["Sungai Petani Utara","North",375],["Sungai Petani Selatan","North",365],["Bertam","North",355],
+  ["Sungai Dua","North",345],["Juru","North",335],["Batu Kawan","North",320],
+  ["Bandar Cassia","North",315],["Jawi","North",310],["Bandar Baharu","North",295],
+  ["Alor Pongsu","North",280],["Bukit Merah","North",270],["Taiping Utara (Kamunting)","North",250],
+  ["Changkat Jering","North",240],["Kuala Kangsar","North",215],["Ipoh Utara","North",195],
+  ["Ipoh Selatan","North",190],["Simpang Pulai","North",180],["Gopeng","North",170],
+  ["Tapah","North",145],["Bidor","North",130],["Sungkai","North",115],["Slim River","North",100],
+  ["Behrang","North",85],["Tanjung Malim","North",70],["Lembah Beringin","North",55],
+  ["Bukit Tagar","North",50],["Rawang","North",25],["Sungai Buloh","North",15],
+  ["Jalan Duta","Central",0],["Damansara","Central",10],["Subang","Central",15],
+  ["Shah Alam","Central",20],["Seafield","Central",25],["USJ","Central",28],
+  ["Putra Heights","Central",33],["Bandar Saujana Putra","Central",40],["KLIA","Central",55],
+  ["Nilai Utara","Central",70],["Sungai Besi","South",0],["UPM","South",5],["Kajang","South",10],
+  ["Bangi","South",18],["Putra Mahkota","South",25],["Nilai","South",35],["Seremban","South",55],
+  ["Port Dickson","South",65],["Senawang","South",70],["Pedas Linggi","South",90],
+  ["Simpang Ampat","South",110],["Ayer Keroh","South",135],["Jasin","South",155],
+  ["Tangkak","South",175],["Pagoh","South",200],["Yong Peng Utara","South",225],
+  ["Yong Peng Selatan","South",235],["Ayer Hitam","South",250],["Machap","South",265],
+  ["Simpang Renggam","South",275],["Sedenak","South",290],["Kulai","South",305],
+  ["Skudai","South",320],["Kempas","South",330],["Johor Bahru (BSI)","South",340],
+  ["Gombak","East",0],["Bentong","East",40],["Karak","East",60],["Lanchang","East",85],
+  ["Mentakab","East",105],["Temerloh","East",115],["Chenor","East",145],["Maran","East",170],
+  ["Sri Jaya","East",190],["Gambang","East",215],["Kuantan","East",240],["Jabor","East",250],
+  ["Cheneh","East",275],["Chukai","East",305],["Kijal","East",325],["Kerteh","East",345],
+  ["Paka","East",360],["Dungun","East",380],["Iron","East",400],["Ajil","East",430],
+  ["Telemong","East",450],["Kuala Terengganu","East",465]
+];
+
+const VEHICLES = [
+  ["Nissan Almera N17 1.5 (ICE Sedan)","ICE",6.8,"L/100km"],
+  ["Nissan Almera 1.0 Turbo (ICE Sedan)","ICE",5.4,"L/100km"],
+  ["Nissan Serena S-Hybrid (ICE MPV)","ICE",7.2,"L/100km"],
+  ["Nissan Navara 2.5 (ICE Diesel Pickup)","ICE",7.8,"L/100km"],
+  ["Nissan Leaf 40kWh (EV Hatchback)","EV",16.5,"kWh/100km"],
+  ["Nissan Kicks e-Power (Hybrid SUV)","Hybrid",4.6,"L/100km"],
+  ["Perodua Axia (ICE Hatchback)","ICE",5,"L/100km"],
+  ["Perodua Myvi 1.5 (ICE Hatchback)","ICE",6,"L/100km"],
+  ["Proton Iriz (ICE Hatchback)","ICE",7,"L/100km"],
+  ["Honda City 1.5 (ICE Sedan)","ICE",6.5,"L/100km"],
+  ["Proton Saga (ICE Sedan)","ICE",6.7,"L/100km"],
+  ["Toyota Vios (ICE Sedan)","ICE",6.2,"L/100km"],
+  ["Honda Civic 1.5T (ICE Sedan)","ICE",6.8,"L/100km"],
+  ["Proton X50 (ICE Compact SUV)","ICE",7.9,"L/100km"],
+  ["Honda HR-V (ICE Compact SUV)","ICE",7.5,"L/100km"],
+  ["Proton X70 (ICE Mid SUV)","ICE",8.5,"L/100km"],
+  ["Perodua Alza (ICE MPV)","ICE",6.5,"L/100km"],
+  ["Toyota Hilux (ICE Diesel Pickup)","ICE",8.5,"L/100km"],
+  ["BYD Dolphin (EV Hatchback)","EV",15,"kWh/100km"],
+  ["GWM Ora Good Cat (EV Hatchback)","EV",16,"kWh/100km"],
+  ["BYD Atto 3 (EV SUV)","EV",17,"kWh/100km"],
+  ["Chery Omoda E5 (EV SUV)","EV",16.5,"kWh/100km"],
+  ["Tesla Model 3 (EV Sedan)","EV",15.5,"kWh/100km"],
+  ["Tesla Model Y (EV SUV)","EV",17.5,"kWh/100km"],
+  ["Hyundai Ioniq 5 (EV SUV)","EV",18,"kWh/100km"],
+  ["BMW iX (EV Large SUV)","EV",21,"kWh/100km"],
+  ["Porsche Taycan (EV Sports Sedan)","EV",23,"kWh/100km"]
+];
+
+const FUELS = [
+  ["RON95 Petrol (Subsidised)",2.05,"RM/L"],
+  ["RON97 Petrol (Premium)",3.47,"RM/L"],
+  ["Diesel (Peninsular Malaysia)",3.35,"RM/L"],
+  ["EV Home Charging (TNB Domestic ~0.50/kWh)",0.5,"RM/kWh"],
+  ["EV Public Charging (AC ~1.10/kWh)",1.1,"RM/kWh"],
+  ["EV Public Charging (DC ~1.50/kWh)",1.5,"RM/kWh"]
+];
+
+const TOLL_RATE = 0.1088;
+const ICE_FUELS = FUELS.slice(0,3);
+const EV_FUELS = FUELS.slice(3,6);
+
+// ---------------- dom refs ----------------
+
+const $entry = document.getElementById('entry');
+const $exit = document.getElementById('exit');
+const $vehicle = document.getElementById('vehicle');
+const $energy = document.getElementById('energy');
+const $energyLabel = document.getElementById('energy-label');
+const $evNote = document.getElementById('ev-note');
+
+const $routeText = document.getElementById('route-text');
+const $distanceText = document.getElementById('distance-text');
+const $tollOut = document.getElementById('toll-out');
+const $fuelRow = document.getElementById('fuel-row');
+const $fuelLabel = document.getElementById('fuel-label');
+const $fuelOut = document.getElementById('fuel-out');
+const $chargeRow = document.getElementById('charge-row');
+const $chargeOut = document.getElementById('charge-out');
+const $totalOut = document.getElementById('total-out');
+
+// ---------------- populate selects ----------------
+
+function fillTollSelect(select, defaultName){
+  const regions = ["North","Central","South","East"];
+  regions.forEach(region => {
+    const group = document.createElement('optgroup');
+    group.label = region;
+    TOLLS.filter(t => t[1] === region).forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t[0];
+      opt.textContent = t[0];
+      if(t[0] === defaultName) opt.selected = true;
+      group.appendChild(opt);
+    });
+    select.appendChild(group);
+  });
+}
+
+function fillVehicleSelect(select, defaultName){
+  const types = [["ICE","Petrol and diesel"],["Hybrid","Hybrid"],["EV","Electric"]];
+  types.forEach(([code,label]) => {
+    const group = document.createElement('optgroup');
+    group.label = label;
+    VEHICLES.filter(v => v[1] === code).forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v[0];
+      opt.textContent = v[0];
+      if(v[0] === defaultName) opt.selected = true;
+      group.appendChild(opt);
+    });
+    select.appendChild(group);
+  });
+}
+
+function fillEnergySelect(select, list, defaultName){
+  select.innerHTML = '';
+  list.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f[0];
+    opt.textContent = f[0];
+    if(f[0] === defaultName) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
+fillTollSelect($entry, "Jitra");
+fillTollSelect($exit, "Skudai");
+fillVehicleSelect($vehicle, "Nissan Almera N17 1.5 (ICE Sedan)");
+fillEnergySelect($energy, ICE_FUELS, "RON95 Petrol (Subsidised)");
+
+// ---------------- helpers ----------------
+
+function tollByName(name){ return TOLLS.find(t => t[0] === name); }
+function vehicleByName(name){ return VEHICLES.find(v => v[0] === name); }
+function fuelByName(name){ return FUELS.find(f => f[0] === name); }
+
+function fmtRM(n){
+  return "RM " + n.toLocaleString('en-MY', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function onVehicleChange(){
+  const v = vehicleByName($vehicle.value);
+  const isEV = v[1] === "EV";
+  $energyLabel.textContent = isEV ? "Charging type" : "Fuel type";
+  $evNote.style.display = isEV ? "block" : "none";
+  const list = isEV ? EV_FUELS : ICE_FUELS;
+  const currentValid = list.some(f => f[0] === $energy.value);
+  fillEnergySelect($energy, list, currentValid ? $energy.value : list[0][0]);
+  recalc();
+}
+
+function recalc(){
+  const entryName = $entry.value;
+  const exitName = $exit.value;
+  const entry = tollByName(entryName);
+  const exit = tollByName(exitName);
+
+  let distance = 0;
+  if(entry && exit){
+    if(entry[1] === exit[1]){
+      distance = Math.abs(entry[2] - exit[2]);
+    } else {
+      distance = entry[2] + exit[2] + 15;
+    }
+  }
+
+  const toll = distance * TOLL_RATE;
+
+  const vehicle = vehicleByName($vehicle.value);
+  const consumption = vehicle ? vehicle[2] : 0;
+  const unit = vehicle ? vehicle[3] : "";
+  const fuel = fuelByName($energy.value);
+  const rate = fuel ? fuel[1] : 0;
+
+  const isPublicCharging = fuel && (fuel[0] === EV_FUELS[1][0] || fuel[0] === EV_FUELS[2][0]);
+
+  let fuelCost = 0;
+  let chargeCost = 0;
+  if(distance > 0 && consumption > 0 && rate > 0){
+    const cost = (distance / 100) * consumption * rate;
+    if(isPublicCharging){ chargeCost = cost; } else { fuelCost = cost; }
+  }
+
+  const total = toll + fuelCost + chargeCost;
+
+  // ---- render ----
+  $routeText.textContent = (entryName || "—") + "  →  " + (exitName || "—");
+  $distanceText.textContent = distance.toLocaleString('en-MY') + " km · " + consumption + " " + unit;
+  $tollOut.textContent = fmtRM(toll);
+
+  const isEV = vehicle && vehicle[1] === "EV";
+  $fuelLabel.textContent = isEV ? "Home charging" : "Fuel";
+  $fuelRow.style.opacity = fuelCost > 0 ? "1" : "0.4";
+  $fuelOut.textContent = fmtRM(fuelCost);
+
+  $chargeRow.style.display = isEV ? "flex" : "none";
+  $chargeOut.textContent = fmtRM(chargeCost);
+  $chargeRow.style.opacity = chargeCost > 0 ? "1" : "0.4";
+
+  $totalOut.innerHTML = '<span class="cur">RM</span>' + total.toLocaleString('en-MY', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+document.getElementById('swap').addEventListener('click', () => {
+  const a = $entry.value;
+  const entryOpt = [...$entry.options].find(o => o.value === $exit.value);
+  const exitOpt = [...$exit.options].find(o => o.value === a);
+  if(entryOpt) $entry.value = $exit.value;
+  if(exitOpt) $exit.value = a;
+  recalc();
+});
+
+$entry.addEventListener('change', recalc);
+$exit.addEventListener('change', recalc);
+$vehicle.addEventListener('change', onVehicleChange);
+$energy.addEventListener('change', recalc);
+
+onVehicleChange();
+</script>
+
+</body>
+</html>
