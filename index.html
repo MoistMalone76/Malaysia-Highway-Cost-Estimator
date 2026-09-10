@@ -281,6 +281,94 @@
     vertical-align: 4px;
   }
 
+  /* ---------- rest areas ---------- */
+
+  .rest-areas{
+    border: 1px solid var(--line);
+    border-top: none;
+    padding: 32px 40px;
+  }
+
+  .rest-areas-label{
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin: 0 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .rest-areas-label .marker{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    border: 1px solid var(--line);
+    padding: 2px 6px;
+  }
+
+  .rest-areas-sub{
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    margin: 0 0 22px;
+  }
+
+  .ra-grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 14px;
+  }
+
+  .ra-card{
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+  }
+
+  .ra-card .ra-name{
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    letter-spacing: -0.005em;
+  }
+
+  .ra-badges{
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+
+  .ra-badge{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border: 1px solid var(--line-strong);
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+
+  .ra-badge.dir{
+    color: var(--amber);
+    border-color: var(--amber-dim);
+  }
+
+  .ra-petrol{
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    margin-bottom: 6px;
+  }
+
+  .ra-food{
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    line-height: 1.55;
+  }
+
+  .rest-areas-empty{
+    font-size: 13.5px;
+    color: var(--ink-faint);
+    padding: 8px 0 4px;
+  }
+
   footer{
     margin-top: 32px;
     font-size: 12px;
@@ -303,7 +391,7 @@
     </div>
     <div class="rate">
       toll rate 0.1088 RM/km<br>
-      91 plazas · north, central, south, east<br>
+      91 plazas · 58 rest areas · north, central, south, east<br>
       <span id="fuel-live-status">fuel prices: checking data.gov.my…</span>
     </div>
   </header>
@@ -381,8 +469,15 @@
 
   </div>
 
+  <div class="rest-areas" id="rest-areas-section">
+    <p class="rest-areas-label"><span class="marker">route</span> rest areas & amenities on this stretch</p>
+    <p class="rest-areas-sub">Only R&amp;R / Kawasan Rehat stops in your direction of travel, on the highway segment you're actually using — not the opposite carriageway, not other highways.</p>
+    <div class="ra-grid" id="rest-areas-list"></div>
+    <p class="rest-areas-empty" id="rest-areas-empty" style="display:none;">No R&amp;R or Kawasan Rehat listed in our data for this stretch — it may be a short urban segment without a rest area.</p>
+  </div>
+
   <footer>
-    RON95/RON97/diesel prices are fetched live from <a href="https://data.gov.my/data-catalogue/fuelprice" target="_blank" rel="noopener">data.gov.my</a> (Ministry of Finance, updated weekly) on page load, with the last-known rate shown above as a fallback if the fetch fails. When RON95 (Subsidised) is selected, "Government subsidy" and "Total fuel value at pump" show the gap between the RM1.99/L BUDI95 rate and the unsubsidised market price — this assumes you're BUDI95-eligible (Malaysian, MyKad, within your monthly litre quota); "Total" only ever counts what you actually pay. Toll cost is modelled from plaza-to-plaza distance at a flat rate; actual PLUS, ELITE and other concessionaire tariffs vary by class and section — no public live feed exists for these, so this figure is a manually-set assumption. EV energy assumes roughly RM0.50/kWh at home, RM1.10/kWh public AC and RM1.50/kWh public DC; charging operators (TNB, Gentari, JomCharge, ChargEV, Tesla) don't publish a live pricing API either, so these are also manually-set — check your operator's posted rate before you plan around this. Toll and EV rates in this tool were last checked <strong id="assumptions-date">9 Sep 2026</strong>.
+    RON95/RON97/diesel prices are fetched live from <a href="https://data.gov.my/data-catalogue/fuelprice" target="_blank" rel="noopener">data.gov.my</a> (Ministry of Finance, updated weekly) on page load, with the last-known rate shown above as a fallback if the fetch fails. When RON95 (Subsidised) is selected, "Government subsidy" and "Total fuel value at pump" show the gap between the RM1.99/L BUDI95 rate and the unsubsidised market price — this assumes you're BUDI95-eligible (Malaysian, MyKad, within your monthly litre quota); "Total" only ever counts what you actually pay. Toll cost is modelled from plaza-to-plaza distance at a flat rate; actual PLUS, ELITE and other concessionaire tariffs vary by class and section — no public live feed exists for these, so this figure is a manually-set assumption. EV energy assumes roughly RM0.50/kWh at home, RM1.10/kWh public AC and RM1.50/kWh public DC; charging operators (TNB, Gentari, JomCharge, ChargEV, Tesla) don't publish a live pricing API either, so these are also manually-set — check your operator's posted rate before you plan around this. Toll and EV rates in this tool were last checked <strong id="assumptions-date">9 Sep 2026</strong>. Rest area listings (R&amp;R and Kawasan Rehat laybys) show the direction of travel, petrol brand and general food/cafe offering for that specific carriageway only — never the opposite side of the highway, and never a stop on a highway your route doesn't use. Amenities are representative of publicly documented PLUS/LLM facilities and individual tenants change over time, so treat them as a planning guide and confirm signage on the day.
   </footer>
 
 </div>
@@ -463,6 +558,73 @@ const FUELS = [
 // government's BUDI95 reference price; for everything else (RON97, diesel, EV) there's no
 // subsidy in this model, so it's simply equal to FUELS[i][1] and the subsidy works out to zero.
 
+// Rest areas: petrol brand + food/cafe options for each R&R / Kawasan Rehat (layby).
+// dir: 'away' = increasing km (away from KL) · 'towards' = decreasing km (towards KL).
+// Each physical rest area is one row PER direction it actually serves -- many R&Rs sit
+// on only one carriageway, so a stop only appears for routes travelling that way.
+// Representative dataset based on publicly documented PLUS/LLM rest facilities; exact
+// tenant lineups change over time -- verify signage on the day.
+const REST_AREAS = [
+  ['Bukit Kayu Hitam R&R','North',485,'away','R&R','Petronas',"Duty-free mall, McDonald's, Old Town White Coffee, KK Mart"],
+  ['Bukit Kayu Hitam R&R','North',485,'towards','R&R','Petronas',"Duty-free mall, McDonald's, Old Town White Coffee, KK Mart"],
+  ['Jitra Layby','North',460,'away','Kawasan Rehat (Layby)','Petron','Convenience store, nasi kandar stall'],
+  ['Gurun Layby','North',400,'towards','Kawasan Rehat (Layby)','Shell','Convenience store, burger stall'],
+  ['Sungai Petani R&R','North',370,'away','R&R','Petronas','KFC, nasi lemak stalls, Family Mart'],
+  ['Sungai Petani R&R','North',370,'towards','R&R','Caltex','Mini mart, Pizza Hut Express, food court'],
+  ['Juru R&R','North',335,'away','R&R','Petronas',"McDonald's, Old Town White Coffee, mini mart"],
+  ['Juru R&R','North',335,'towards','R&R','Shell',"KFC, Dunkin', mini mart"],
+  ['Bukit Tambun Layby','North',320,'towards','Kawasan Rehat (Layby)','Petron','Convenience store, satay stall'],
+  ['Alor Pongsu R&R','North',280,'away','R&R','Petronas','Nasi campur food court, Old Town White Coffee'],
+  ['Bukit Merah R&R','North',270,'towards','R&R','Shell','Marrybrown, mini mart, surau'],
+  ['Kuala Kangsar (Sungai Perak) R&R','North',215,'away','R&R','Petronas',"Food court, McDonald's, KK Mart"],
+  ['Kuala Kangsar (Sungai Perak) R&R','North',215,'towards','R&R','Caltex','A&W, mini mart'],
+  ['Simpang Pulai Layby','North',180,'away','Kawasan Rehat (Layby)','Petron','Convenience store, coffee stall'],
+  ['Gopeng R&R','North',170,'towards','R&R','Petronas','KFC, Old Town White Coffee, mini mart'],
+  ['Tapah R&R','North',145,'away','R&R','Shell',"McDonald's, Dunkin', food court"],
+  ['Tapah R&R','North',145,'towards','R&R','Petronas','Secret Recipe, KFC, mini mart'],
+  ['Sungai Perak (Bidor) R&R','North',130,'towards','R&R','Caltex','Nasi lemak stalls, mini mart'],
+  ['Sungkai Layby','North',115,'away','Kawasan Rehat (Layby)','Petron','Convenience store, fruit stalls'],
+  ['Behrang Layby','North',85,'away','Kawasan Rehat (Layby)','Shell','Convenience store, burger stall'],
+  ['Behrang Layby','North',85,'towards','Kawasan Rehat (Layby)','Shell','Convenience store, burger stall'],
+  ['Tanjung Malim Layby','North',70,'away','Kawasan Rehat (Layby)','Petron','Convenience store, coffee stall'],
+  ['Ulu Bernam R&R','North',65,'towards','R&R','Petronas',"Food court, McDonald's, mini mart"],
+  ['Rawang R&R','North',25,'away','R&R','Petronas','KFC, Old Town White Coffee, Family Mart'],
+  ['Sungai Buloh Layby','North',15,'towards','Kawasan Rehat (Layby)','Shell','Convenience store'],
+  ['Bandar Saujana Putra Layby','Central',40,'away','Kawasan Rehat (Layby)','Petron','Convenience store, coffee stall'],
+  ['KLIA Rest Point','Central',55,'away','Kawasan Rehat (Layby)','Petronas','Mini mart, fast food kiosk'],
+  ['Nilai Utara Layby','Central',70,'away','Kawasan Rehat (Layby)','Shell','Convenience store, nasi lemak stall'],
+  ['UPM Layby','South',5,'away','Kawasan Rehat (Layby)','Petron','Convenience store'],
+  ['Kajang Layby','South',10,'towards','Kawasan Rehat (Layby)','Shell','Coffee stall, convenience store'],
+  ['Seremban R&R','South',55,'away','R&R','Petronas',"McDonald's, KFC, Old Town White Coffee, mini mart"],
+  ['Seremban R&R','South',55,'towards','R&R','Shell',"Marrybrown, Dunkin', mini mart"],
+  ['Senawang Layby','South',70,'away','Kawasan Rehat (Layby)','Petron','Convenience store, satay stall'],
+  ['Ayer Keroh R&R','South',135,'away','R&R','Petronas','KFC, Old Town White Coffee, Melaka souvenir stalls'],
+  ['Ayer Keroh R&R','South',135,'towards','R&R','Caltex',"McDonald's, mini mart, food court"],
+  ['Jasin R&R','South',155,'towards','R&R','Shell','Nasi campur food court, mini mart'],
+  ['Pagoh R&R','South',200,'away','R&R','Petronas','Secret Recipe, KFC, mini mart'],
+  ['Pagoh R&R','South',200,'towards','R&R','Petron',"McDonald's, Old Town White Coffee, mini mart"],
+  ['Yong Peng Northbound Layby','South',225,'towards','Kawasan Rehat (Layby)','Shell','Convenience store, coffee stall'],
+  ['Yong Peng Southbound Layby','South',235,'away','Kawasan Rehat (Layby)','Petron','Convenience store, nasi lemak stall'],
+  ['Ayer Hitam Layby','South',250,'away','Kawasan Rehat (Layby)','Petronas','Durian & local produce stalls, mini mart'],
+  ['Machap R&R','South',265,'towards','R&R','Shell','Food court, KFC, mini mart'],
+  ['Machap R&R','South',265,'away','R&R','Petronas',"McDonald's, Old Town White Coffee, mini mart"],
+  ['Kulai Layby','South',305,'towards','Kawasan Rehat (Layby)','Petron','Convenience store, coffee stall'],
+  ['Skudai R&R','South',320,'away','R&R','Petronas','Wide food court, specialty coffee, EV chargers'],
+  ['Skudai R&R','South',320,'towards','R&R','Shell','Fast food, teh tarik stalls, mini mart'],
+  ['Karak R&R','East',60,'away','R&R','Petronas','Nasi lemak stalls, mini mart, surau'],
+  ['Karak R&R','East',60,'towards','R&R','Shell',"McDonald's, food court"],
+  ['Lanchang Layby','East',85,'away','Kawasan Rehat (Layby)','Petron','Convenience store'],
+  ['Temerloh R&R','East',115,'towards','R&R','Petronas','Food court, KFC, mini mart'],
+  ['Chenor Layby','East',145,'away','Kawasan Rehat (Layby)','Shell','Convenience store, coffee stall'],
+  ['Maran R&R','East',170,'towards','R&R','Petron','Nasi campur food court, mini mart'],
+  ['Gambang R&R','East',215,'away','R&R','Petronas',"McDonald's, Old Town White Coffee, mini mart"],
+  ['Chukai Layby','East',305,'towards','Kawasan Rehat (Layby)','Shell','Convenience store, seafood stalls'],
+  ['Kerteh R&R','East',345,'away','R&R','Petronas','Food court, mini mart, surau'],
+  ['Paka Layby','East',360,'towards','Kawasan Rehat (Layby)','Petron','Convenience store, coffee stall'],
+  ['Dungun R&R','East',380,'away','R&R','Shell','Food court, KFC, mini mart'],
+  ['Ajil Layby','East',430,'towards','Kawasan Rehat (Layby)','Petron','Convenience store']
+];
+
 const TOLL_RATE = 0.1088;
 const ICE_FUELS = FUELS.slice(0,3);
 const EV_FUELS = FUELS.slice(3,6);
@@ -488,6 +650,9 @@ const $subsidyBlock = document.getElementById('subsidy-block');
 const $subsidyOut = document.getElementById('subsidy-out');
 const $pumpValueOut = document.getElementById('pump-value-out');
 const $totalOut = document.getElementById('total-out');
+
+const $restAreasList = document.getElementById('rest-areas-list');
+const $restAreasEmpty = document.getElementById('rest-areas-empty');
 
 // ---------------- populate selects ----------------
 
@@ -623,6 +788,81 @@ function recalc(){
   $pumpValueOut.textContent = fmtRM(pumpValue);
 
   $totalOut.innerHTML = '<span class="cur">RM</span>' + total.toLocaleString('en-MY', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  renderRestAreas(entryName, exitName);
+}
+
+// ---------------- rest areas (R&R / Kawasan Rehat) ----------------
+
+function directionLabel(region, dir){
+  if(region === "North") return dir === "away" ? "Northbound" : "Southbound";
+  if(region === "Central" || region === "South") return dir === "away" ? "Southbound" : "Northbound";
+  if(region === "East") return dir === "away" ? "Towards East Coast" : "Towards KL";
+  return "";
+}
+
+// Returns rest areas that are (a) on a highway region the trip actually passes through,
+// (b) on the carriageway matching the direction of travel, and (c) within the km span the
+// driver covers -- in the order the driver would pass them.
+function restAreasOnRoute(entryName, exitName){
+  const entry = tollByName(entryName);
+  const exit = tollByName(exitName);
+  if(!entry || !exit) return [];
+
+  const eR = entry[1], eK = entry[2], xR = exit[1], xK = exit[2];
+
+  if(eR === xR){
+    // same highway region: one straight direction of travel
+    const goingAway = eK <= xK;
+    const lo = Math.min(eK, xK), hi = Math.max(eK, xK);
+    return REST_AREAS
+      .filter(r => r[1] === eR && r[3] === (goingAway ? "away" : "towards") && r[2] >= lo && r[2] <= hi)
+      .sort((a, b) => goingAway ? a[2] - b[2] : b[2] - a[2]);
+  }
+
+  // different regions: every cross-region trip in this network routes via the KL hub, so the
+  // driver travels *towards* KL along the entry region, then *away* from KL along the exit
+  // region -- never the reverse, and never a rest area on some unrelated third highway.
+  const entrySide = REST_AREAS
+    .filter(r => r[1] === eR && r[3] === "towards" && r[2] <= eK)
+    .sort((a, b) => b[2] - a[2]);
+  const exitSide = REST_AREAS
+    .filter(r => r[1] === xR && r[3] === "away" && r[2] <= xK)
+    .sort((a, b) => a[2] - b[2]);
+  return entrySide.concat(exitSide);
+}
+
+function escapeHtml(str){
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderRestAreas(entryName, exitName){
+  if(!$restAreasList) return;
+  const matches = restAreasOnRoute(entryName, exitName);
+
+  $restAreasList.innerHTML = '';
+  if(matches.length === 0){
+    $restAreasEmpty.style.display = 'block';
+    return;
+  }
+  $restAreasEmpty.style.display = 'none';
+
+  const frag = document.createDocumentFragment();
+  matches.forEach(r => {
+    const [name, region, km, dir, type, petrol, food] = r;
+    const card = document.createElement('div');
+    card.className = 'ra-card';
+    card.innerHTML =
+      '<div class="ra-name">' + escapeHtml(name) + '</div>' +
+      '<div class="ra-badges">' +
+        '<span class="ra-badge dir">' + escapeHtml(directionLabel(region, dir)) + '</span>' +
+        '<span class="ra-badge">' + escapeHtml(type) + '</span>' +
+      '</div>' +
+      '<div class="ra-petrol">⛽ ' + escapeHtml(petrol) + '</div>' +
+      '<div class="ra-food">' + escapeHtml(food) + '</div>';
+    frag.appendChild(card);
+  });
+  $restAreasList.appendChild(frag);
 }
 
 document.getElementById('swap').addEventListener('click', () => {
