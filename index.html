@@ -244,6 +244,10 @@
 
   .line-item.muted{ opacity: 0.4; }
 
+  .line-item.subsidy .k{ color: var(--amber); opacity: 0.85; }
+  .line-item.subsidy .hint{ color: var(--ink-faint); font-size: 12px; }
+  .line-item.subsidy .v{ color: var(--amber); opacity: 0.85; }
+
   .divider-dash{
     border: none;
     border-top: 1px dashed var(--line-strong);
@@ -357,6 +361,18 @@
         <span class="v num" id="charge-out">RM 0.00</span>
       </div>
 
+      <div id="subsidy-block">
+        <hr class="divider-dash">
+        <div class="line-item subsidy">
+          <span class="k">Government subsidy <span class="hint">(you don't pay this)</span></span>
+          <span class="v num" id="subsidy-out">RM 0.00</span>
+        </div>
+        <div class="line-item subsidy">
+          <span class="k">Total fuel value at pump</span>
+          <span class="v num" id="pump-value-out">RM 0.00</span>
+        </div>
+      </div>
+
       <div class="total-row">
         <span class="k">Total</span>
         <span class="v num" id="total-out"><span class="cur">RM</span>0.00</span>
@@ -366,7 +382,7 @@
   </div>
 
   <footer>
-    RON95/RON97/diesel prices are fetched live from <a href="https://data.gov.my/data-catalogue/fuelprice" target="_blank" rel="noopener">data.gov.my</a> (Ministry of Finance, updated weekly) on page load, with the last-known rate shown above as a fallback if the fetch fails. Toll cost is modelled from plaza-to-plaza distance at a flat rate; actual PLUS, ELITE and other concessionaire tariffs vary by class and section — no public live feed exists for these, so this figure is a manually-set assumption. EV energy assumes roughly RM0.50/kWh at home, RM1.10/kWh public AC and RM1.50/kWh public DC; charging operators (TNB, Gentari, JomCharge, ChargEV, Tesla) don't publish a live pricing API either, so these are also manually-set — check your operator's posted rate before you plan around this. Toll and EV rates in this tool were last checked <strong id="assumptions-date">9 Sep 2026</strong>.
+    RON95/RON97/diesel prices are fetched live from <a href="https://data.gov.my/data-catalogue/fuelprice" target="_blank" rel="noopener">data.gov.my</a> (Ministry of Finance, updated weekly) on page load, with the last-known rate shown above as a fallback if the fetch fails. When RON95 (Subsidised) is selected, "Government subsidy" and "Total fuel value at pump" show the gap between the RM1.99/L BUDI95 rate and the unsubsidised market price — this assumes you're BUDI95-eligible (Malaysian, MyKad, within your monthly litre quota); "Total" only ever counts what you actually pay. Toll cost is modelled from plaza-to-plaza distance at a flat rate; actual PLUS, ELITE and other concessionaire tariffs vary by class and section — no public live feed exists for these, so this figure is a manually-set assumption. EV energy assumes roughly RM0.50/kWh at home, RM1.10/kWh public AC and RM1.50/kWh public DC; charging operators (TNB, Gentari, JomCharge, ChargEV, Tesla) don't publish a live pricing API either, so these are also manually-set — check your operator's posted rate before you plan around this. Toll and EV rates in this tool were last checked <strong id="assumptions-date">9 Sep 2026</strong>.
   </footer>
 
 </div>
@@ -436,13 +452,16 @@ const VEHICLES = [
 ];
 
 const FUELS = [
-  ["RON95 Petrol (Subsidised)",2.05,"RM/L"],
-  ["RON97 Petrol (Premium)",3.47,"RM/L"],
-  ["Diesel (Peninsular Malaysia)",3.35,"RM/L"],
-  ["EV Home Charging (TNB Domestic ~0.50/kWh)",0.5,"RM/kWh"],
-  ["EV Public Charging (AC ~1.10/kWh)",1.1,"RM/kWh"],
-  ["EV Public Charging (DC ~1.50/kWh)",1.5,"RM/kWh"]
+  ["RON95 Petrol (Subsidised)",1.99,"RM/L",4.02],
+  ["RON97 Petrol (Premium)",4.50,"RM/L",4.50],
+  ["Diesel (Peninsular Malaysia)",4.92,"RM/L",4.92],
+  ["EV Home Charging (TNB Domestic ~0.50/kWh)",0.5,"RM/kWh",0.5],
+  ["EV Public Charging (AC ~1.10/kWh)",1.1,"RM/kWh",1.1],
+  ["EV Public Charging (DC ~1.50/kWh)",1.5,"RM/kWh",1.5]
 ];
+// FUELS[i][3] is the unsubsidised market value of the same litre/kWh. For RON95 it's the
+// government's BUDI95 reference price; for everything else (RON97, diesel, EV) there's no
+// subsidy in this model, so it's simply equal to FUELS[i][1] and the subsidy works out to zero.
 
 const TOLL_RATE = 0.1088;
 const ICE_FUELS = FUELS.slice(0,3);
@@ -465,6 +484,9 @@ const $fuelLabel = document.getElementById('fuel-label');
 const $fuelOut = document.getElementById('fuel-out');
 const $chargeRow = document.getElementById('charge-row');
 const $chargeOut = document.getElementById('charge-out');
+const $subsidyBlock = document.getElementById('subsidy-block');
+const $subsidyOut = document.getElementById('subsidy-out');
+const $pumpValueOut = document.getElementById('pump-value-out');
 const $totalOut = document.getElementById('total-out');
 
 // ---------------- populate selects ----------------
@@ -560,6 +582,7 @@ function recalc(){
   const unit = vehicle ? vehicle[3] : "";
   const fuel = fuelByName($energy.value);
   const rate = fuel ? fuel[1] : 0;
+  const marketRate = fuel ? (typeof fuel[3] === 'number' ? fuel[3] : fuel[1]) : 0;
 
   const isPublicCharging = fuel && (fuel[0] === EV_FUELS[1][0] || fuel[0] === EV_FUELS[2][0]);
 
@@ -569,6 +592,15 @@ function recalc(){
     const cost = (distance / 100) * consumption * rate;
     if(isPublicCharging){ chargeCost = cost; } else { fuelCost = cost; }
   }
+
+  // government subsidy = same litres/kWh used, times the gap between the market value and
+  // what you actually pay -- this is naturally zero whenever marketRate equals rate (RON97,
+  // diesel, EV, or an unsubsidised choice), so no separate "is this subsidised" check is needed.
+  let subsidyCost = 0;
+  if(distance > 0 && consumption > 0 && marketRate > rate){
+    subsidyCost = (distance / 100) * consumption * (marketRate - rate);
+  }
+  const pumpValue = fuelCost + chargeCost + subsidyCost;
 
   const total = toll + fuelCost + chargeCost;
 
@@ -585,6 +617,10 @@ function recalc(){
   $chargeRow.style.display = isEV ? "flex" : "none";
   $chargeOut.textContent = fmtRM(chargeCost);
   $chargeRow.style.opacity = chargeCost > 0 ? "1" : "0.4";
+
+  $subsidyBlock.style.display = subsidyCost > 0.001 ? "block" : "none";
+  $subsidyOut.textContent = fmtRM(subsidyCost);
+  $pumpValueOut.textContent = fmtRM(pumpValue);
 
   $totalOut.innerHTML = '<span class="cur">RM</span>' + total.toLocaleString('en-MY', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
@@ -642,8 +678,9 @@ async function loadLiveFuelPrices(){
     // sanity-check each value before trusting it, so any future oddity in the feed can't
     // silently corrupt the ticket with a bogus or negative rate again.
     if(isSanePrice(ron95Subsidised)) FUELS[0][1] = ron95Subsidised;
-    if(isSanePrice(latest.ron97)) FUELS[1][1] = latest.ron97;
-    if(isSanePrice(latest.diesel)) FUELS[2][1] = latest.diesel;
+    if(isSanePrice(latest.ron95)) FUELS[0][3] = latest.ron95; // market value, for the subsidy calc
+    if(isSanePrice(latest.ron97)) { FUELS[1][1] = latest.ron97; FUELS[1][3] = latest.ron97; }
+    if(isSanePrice(latest.diesel)) { FUELS[2][1] = latest.diesel; FUELS[2][3] = latest.diesel; }
 
     if($status) $status.textContent = `fuel prices live · week of ${latest.date}`;
     recalc(); // repaint the ticket with the refreshed rate, if fuel/diesel is selected
