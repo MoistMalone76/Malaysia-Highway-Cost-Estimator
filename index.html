@@ -613,6 +613,8 @@ onVehicleChange();
 
 async function loadLiveFuelPrices(){
   const $status = document.getElementById('fuel-live-status');
+  const isSanePrice = (v) => typeof v === 'number' && v > 0.5 && v < 10; // plausible RM/L range
+
   try{
     const since = new Date();
     since.setDate(since.getDate() - 60); // last ~60 days is plenty to catch this week's row
@@ -621,8 +623,13 @@ async function loadLiveFuelPrices(){
 
     const res = await fetch(url);
     if(!res.ok) throw new Error('HTTP ' + res.status);
-    const rows = await res.json();
+    let rows = await res.json();
     if(!Array.isArray(rows) || rows.length === 0) throw new Error('empty response');
+
+    // the dataset mixes real price "level" rows with week-on-week "change" rows (small
+    // +/- deltas) under the same field names -- only "level" rows are actual prices.
+    rows = rows.filter(r => r.series_type === 'level' || r.series_type == null);
+    if(rows.length === 0) throw new Error('no level-series rows in range');
 
     // pick the most recent row client-side, don't rely on server-side ordering
     rows.sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -632,9 +639,11 @@ async function loadLiveFuelPrices(){
     // litres/month) where available, falling back to the general RON95 rate otherwise.
     const ron95Subsidised = (typeof latest.ron95_budi95 === 'number') ? latest.ron95_budi95 : latest.ron95;
 
-    if(typeof ron95Subsidised === 'number') FUELS[0][1] = ron95Subsidised;
-    if(typeof latest.ron97 === 'number') FUELS[1][1] = latest.ron97;
-    if(typeof latest.diesel === 'number') FUELS[2][1] = latest.diesel;
+    // sanity-check each value before trusting it, so any future oddity in the feed can't
+    // silently corrupt the ticket with a bogus or negative rate again.
+    if(isSanePrice(ron95Subsidised)) FUELS[0][1] = ron95Subsidised;
+    if(isSanePrice(latest.ron97)) FUELS[1][1] = latest.ron97;
+    if(isSanePrice(latest.diesel)) FUELS[2][1] = latest.diesel;
 
     if($status) $status.textContent = `fuel prices live · week of ${latest.date}`;
     recalc(); // repaint the ticket with the refreshed rate, if fuel/diesel is selected
